@@ -26,7 +26,12 @@ from src.extractores import elegir_extractor
 def listar_entrada():
     if not config.CARPETA_ENTRADA.exists():
         return []
-    return sorted(p for p in config.CARPETA_ENTRADA.iterdir() if p.is_file())
+
+    # Ignorar placeholders como .gitkeep y archivos ocultos.
+    return sorted(
+        p for p in config.CARPETA_ENTRADA.iterdir()
+        if p.is_file() and not p.name.startswith(".")
+    )
 
 
 def main():
