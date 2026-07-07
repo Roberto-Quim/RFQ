@@ -1,0 +1,37 @@
+{% extends "seguimiento/base.html" %}
+{% block title %}Historial{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Historial de procesamientos</h2>
+  {% if registros %}
+  <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th><th>RFQ</th><th>Accion</th><th>Estado</th>
+          <th>Solicitante</th><th>Planta</th><th>Faltantes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in registros %}
+        <tr>
+          <td>{{ r.creado_en|date:"Y-m-d H:i" }}</td>
+          <td>{{ r.rfq }}</td>
+          <td>{{ r.accion|default:"—" }}</td>
+          <td>
+            {% if r.estado == "ok" %}<span class="pill ok">OK</span>
+            {% else %}<span class="pill err">Error</span>{% endif %}
+          </td>
+          <td>{{ r.solicitante|default:"—" }}</td>
+          <td>{{ r.planta|default:"—" }}</td>
+          <td>{{ r.campos_faltantes|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p>Aun no hay RFQ procesados.</p>
+  {% endif %}
+</div>
+{% endblock %}

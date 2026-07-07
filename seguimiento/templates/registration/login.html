@@ -1,0 +1,15 @@
+{% extends "seguimiento/base.html" %}
+{% block title %}Entrar{% endblock %}
+{% block content %}
+<div class="card" style="max-width:380px;margin:0 auto">
+  <h2>Iniciar sesion</h2>
+  {% if form.errors %}
+    <div class="msg error">Usuario o contrasena incorrectos.</div>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Entrar</button>
+  </form>
+</div>
+{% endblock %}

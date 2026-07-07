@@ -1,0 +1,14 @@
+{% extends "seguimiento/base.html" %}
+{% block title %}Subir RFQ{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Subir archivo RFQ / correo (.txt)</h2>
+  <p>Sube el correo Form Approvals guardado como <code>.txt</code>. Se mostrara
+     una vista previa editable <strong>antes</strong> de escribir en el Excel.</p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Extraer y previsualizar</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "seguimiento/base.html" %}
+{% block title %}Resultado{% endblock %}
+{% block content %}
+<div class="card">
+  {% if ok %}
+    <div class="msg success">
+      RFQ <strong>{{ dato.rfq }}</strong>
+      {% if resumen.accion == "agregado" %}<strong>agregado</strong>{% else %}<strong>actualizado</strong>{% endif %}
+      en PROYECTO.xlsx.
+    </div>
+    <table>
+      <tr><th>RFQ</th><td>{{ dato.rfq }}</td></tr>
+      <tr><th>Descripcion</th><td>{{ dato.descripcion|default:"—" }}</td></tr>
+      <tr><th>Fecha de arranque</th><td>{{ dato.fecha_arranque|default:"—" }}</td></tr>
+      <tr><th>Solicitante</th><td>{{ dato.solicitante|default:"—" }}</td></tr>
+      <tr><th>Planta</th><td>{{ dato.planta|default:"—" }}</td></tr>
+      <tr><th>Accion</th><td>{{ resumen.accion }}</td></tr>
+      <tr><th>Backup creado</th><td>{{ resumen.backup }}</td></tr>
+      <tr><th>Campos faltantes</th>
+          <td>{% if resumen.faltantes %}{{ resumen.faltantes|join:", " }}{% else %}ninguno{% endif %}</td></tr>
+    </table>
+  {% else %}
+    <div class="msg error">No se pudo actualizar el seguimiento.</div>
+    <p><strong>Motivo:</strong> {{ mensaje }}</p>
+    <p>El archivo maestro no fue modificado.</p>
+  {% endif %}
+  <p style="margin-top:1.2rem">
+    <a href="{% url 'subir_rfq' %}"><button type="button">Procesar otro RFQ</button></a>
+    <a href="{% url 'historial' %}"><button type="button" class="secundario">Ver historial</button></a>
+  </p>
+</div>
+{% endblock %}

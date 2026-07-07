@@ -1,0 +1,23 @@
+{% extends "seguimiento/base.html" %}
+{% block title %}Vista previa{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Vista previa (editable)</h2>
+  <p>Revisa y corrige los datos. <strong>Todavia no se ha escrito nada</strong>
+     en <code>PROYECTO.xlsx</code>. Se escribira solo al confirmar.</p>
+
+  {% if archivo_nombre %}<p><small>Archivo origen: {{ archivo_nombre }}</small></p>{% endif %}
+
+  {% if faltantes %}
+    <div class="aviso">Campos faltantes detectados: {{ faltantes|join:", " }}.
+      Puedes capturarlos ahora si los conoces.</div>
+  {% endif %}
+
+  <form method="post" action="{% url 'confirmar' %}">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Actualizar seguimiento</button>
+    <a href="{% url 'subir_rfq' %}"><button type="button" class="secundario">Cancelar</button></a>
+  </form>
+</div>
+{% endblock %}

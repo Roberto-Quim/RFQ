@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Seguimiento RFQ{% endblock %}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; line-height: 1.5; }
+    header { background: #1f2937; color: #fff; padding: .8rem 1.2rem;
+             display: flex; justify-content: space-between; align-items: center; }
+    header a { color: #cbd5e1; text-decoration: none; margin-left: 1rem; }
+    header a:hover { color: #fff; }
+    main { max-width: 760px; margin: 1.5rem auto; padding: 0 1rem; }
+    .card { border: 1px solid #d1d5db; border-radius: 8px; padding: 1.2rem 1.4rem; }
+    label { display: block; font-weight: 600; margin-top: .8rem; }
+    input, textarea { width: 100%; padding: .5rem; box-sizing: border-box;
+                      border: 1px solid #9ca3af; border-radius: 6px; font-size: 1rem; }
+    button { margin-top: 1.2rem; padding: .6rem 1.2rem; border: 0; border-radius: 6px;
+             background: #2563eb; color: #fff; font-size: 1rem; cursor: pointer; }
+    button.secundario { background: #6b7280; }
+    .msg { padding: .7rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    .msg.error { background: #fee2e2; color: #991b1b; }
+    .msg.success { background: #dcfce7; color: #166534; }
+    .aviso { background: #fef9c3; color: #854d0e; padding: .6rem 1rem; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #d1d5db; padding: .4rem .6rem; text-align: left; font-size: .9rem; }
+    th { background: #f3f4f6; }
+    .pill { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .8rem; }
+    .pill.ok { background: #dcfce7; color: #166534; }
+    .pill.err { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Seguimiento RFQ</strong>
+    <nav>
+      {% if user.is_authenticated %}
+        <a href="{% url 'subir_rfq' %}">Subir RFQ</a>
+        <a href="{% url 'historial' %}">Historial</a>
+        <form action="{% url 'logout' %}" method="post" style="display:inline">
+          {% csrf_token %}
+          <button type="submit" class="secundario" style="margin:0;padding:.3rem .8rem">Salir</button>
+        </form>
+      {% else %}
+        <a href="{% url 'login' %}">Entrar</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main>
+    {% if messages %}
+      {% for m in messages %}
+        <div class="msg {% if m.tags %}{{ m.tags }}{% endif %}">{{ m }}</div>
+      {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

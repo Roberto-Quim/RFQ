@@ -35,6 +35,18 @@ muestras/*
 !reportes/.gitkeep
 !muestras/.gitkeep
 
+# Django (Fase 2)
+# (los comentarios en .gitignore deben ir en su PROPIA linea, no al final del patron)
+# BD local: puede contener datos reales del historial
+db.sqlite3
+db.sqlite3-journal
+# archivos subidos por los usuarios (RFQ .txt)
+media/
+# estaticos recolectados (collectstatic)
+staticfiles/
+# NOTA: las migraciones (seguimiento/migrations/*.py) SI se versionan: son
+# estructura, no datos. Solo el __pycache__ queda excluido (regla de arriba).
+
 # Sistema / IDE
 .DS_Store
 Thumbs.db

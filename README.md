@@ -4,11 +4,16 @@ Automatizacion local que lee archivos RFQ de `entrada/`, extrae los campos
 clave y actualiza la hoja de seguimiento de `PROYECTO.xlsx` sin perder
 formato, formulas, bordes ni filtros.
 
-> **Fase actual: Fase 1 (motor local en Python).** Django NO es parte de la
-> Fase 1: sera Fase 2 o Fase 3. Primero se deja funcionando el motor local
-> (leer correos/RFQ, extraer, actualizar el Excel, conservar formato/formulas,
-> evitar duplicados, generar bitacora) y luego ese mismo motor se reutiliza
-> dentro de Django.
+> **Fases del proyecto**
+> - **Fase 1 (completa): motor local en Python.** Lee correos/RFQ, extrae,
+>   actualiza el Excel conservando formato/formulas, evita duplicados y genera
+>   bitacora. Se usa por CLI (`python main.py`).
+> - **Fase 2 (en curso): sistema web basico con Django** que ENVUELVE el motor
+>   de Fase 1 (no lo reescribe). Login, subir `.txt`, vista previa editable y
+>   escritura confirmada al Excel, con historial en SQLite.
+>
+> El motor de Fase 1 (`config.py`, `src/`) queda intacto; Django lo reutiliza
+> por import a traves de `seguimiento/services.py`.
 
 ## Estructura real del maestro (PROYECTO.xlsx)
 Confirmada al inspeccionar el archivo real:
@@ -98,8 +103,61 @@ El RFQ se guarda siempre como **texto** en la columna A del maestro.
   Negocio` (ej. "Questum Maquinados Ramos") equivale directo a `Planta`, o si
   requiere un mapeo (ej. -> "Ramos Arizpe"). El mapeo opcional esta en
   `config.MAPA_UNIDAD_A_PLANTA` (vacio = se usa el valor tal cual).
-- **Django**: es Fase 2 o Fase 3, NO Fase 1. El motor local se reutilizara
-  dentro de Django cuando llegue esa fase.
+## Fase 2 - Sistema web (Django)
+Django **envuelve** el motor de Fase 1; no lo reescribe. Toda la interaccion
+con el motor pasa por `seguimiento/services.py`.
+
+Estructura anadida:
+
+```text
+manage.py
+rfq_project/           # proyecto Django (settings, urls, wsgi, asgi)
+seguimiento/           # app: models, forms, views, urls, services, admin, templates
+  services.py          # UNICO puente Django <-> motor (Fase 1)
+  templates/seguimiento/  subir_rfq / vista_previa / resultado / historial
+  templates/registration/ login
+```
+
+Instalar y arrancar:
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser   # crea TU usuario (no se versiona)
+python manage.py runserver
+```
+
+Luego abre http://127.0.0.1:8000/ e inicia sesion.
+
+Flujo web seguro (el Excel solo se escribe al confirmar):
+
+1. Subir archivo `.txt` (correo Form Approvals).
+2. El motor (`FormApprovalsExtractor`) extrae RFQ, descripcion, solicitante,
+   planta; la fecha de arranque queda faltante.
+3. Vista previa **editable** — aun NO se escribe nada.
+4. El usuario revisa/corrige y confirma.
+5. Se crea **backup** y se escribe en `PROYECTO.xlsx` via
+   `excel_maestro.agregar_o_actualizar()` (solo A/B/C/D/F; O y P se conservan).
+6. Se muestra el resultado (agregado/actualizado, backup, faltantes, errores)
+   y se guarda el historial en SQLite (`RFQProcesado`).
+
+Errores claros: si `PROYECTO.xlsx` o la hoja `"SEGUIMIENTO "` no existen, o si el
+archivo esta abierto en Excel, la app lo indica y NO deja el maestro a medias.
+
+Compatibilidad CLI (Fase 1 intacta):
+
+```bash
+python main.py                # motor por linea de comandos
+python inspeccionar.py        # analisis del maestro
+python tests/test_motor.py    # pruebas del motor
+python tests/test_servicios.py    # pruebas del servicio web (sin BD)
+python manage.py test seguimiento # pruebas de integracion web (BD de prueba)
+```
+
+## No versionar datos sensibles
+`.gitignore` excluye: `PROYECTO.xlsx` y todo `*.xlsx/.xls/.xlsm`, `*.eml/.msg/.pdf/.docx/.txt`,
+las carpetas `entrada/procesados/backups/reportes/muestras/media/`, y `db.sqlite3`.
+Las migraciones (`seguimiento/migrations/*.py`) SI se versionan: son estructura, no datos.
 
 ## Config
 Todo lo ajustable esta en `config.py` (rutas, hoja, columnas, formato de
