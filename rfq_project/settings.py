@@ -69,6 +69,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise sirve los estaticos (incl. /admin/) bajo Waitress con DEBUG=0.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -116,6 +118,14 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+# Destino de collectstatic (Fase 4). Carpeta IGNORADA por Git.
+STATIC_ROOT = Path(os.environ.get("RFQ_STATIC_ROOT", BASE_DIR / "staticfiles"))
+
+# Backend de estaticos: WhiteNoise comprimido (sin manifest, robusto en dev y prod).
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
 
 # Archivos subidos por los usuarios (RFQ .txt). Carpeta IGNORADA por Git.
 MEDIA_URL = "media/"

@@ -217,6 +217,27 @@ python manage.py test seguimiento  # Fase 2+3: permisos, estado, lock, auditoria
 python manage.py check
 ```
 
+## Fase 4 - Despliegue interno (Windows)
+Deja el proyecto listo para correr como aplicacion interna en una PC de empresa,
+sin cloud ni APIs de correo. Guia completa: **[docs/OPERACION.md](docs/OPERACION.md)**.
+
+Resumen:
+
+```bash
+python -m venv .venv && .venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env            # editar: SECRET_KEY propia, DEBUG=0, ALLOWED_HOSTS, RFQ_ARCHIVO_MAESTRO
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py collectstatic --noinput
+python manage.py check_operativo  # valida DEBUG/SECRET_KEY/Excel/hoja/carpetas/BD/migraciones/permisos
+python run_waitress.py            # servidor interno (host/puerto por env)
+```
+
+- `run_waitress.py`: sirve la app con **Waitress** (`RFQ_WAITRESS_HOST`/`RFQ_WAITRESS_PORT`).
+- Estaticos servidos por **WhiteNoise** tras `collectstatic` (incluye `/admin/`).
+- `check_operativo`: management command que valida el entorno; NO muestra `SECRET_KEY`.
+
 ## No versionar datos sensibles
 `.gitignore` excluye: `PROYECTO.xlsx` y todo `*.xlsx/.xls/.xlsm`, `*.eml/.msg/.pdf/.docx/.txt`,
 las carpetas `entrada/procesados/backups/reportes/muestras/media/logs/`, `db.sqlite3` y `.env`.

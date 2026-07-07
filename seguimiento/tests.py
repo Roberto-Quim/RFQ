@@ -6,9 +6,13 @@ TEMPORAL (no tocan el Excel real). Ejecuta:  python manage.py test seguimiento
 """
 import shutil
 import tempfile
+from io import StringIO
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth.models import Permission, User
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import Client, TestCase
 from openpyxl import Workbook, load_workbook
 
@@ -144,3 +148,40 @@ class LockTests(TestCase):
             self.assertFalse(ruta.exists())      # liberado al salir
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class Fase4Tests(TestCase):
+    """Pruebas de despliegue interno (Waitress, estaticos, chequeo operativo)."""
+
+    def test_static_root_configurado(self):
+        self.assertTrue(str(settings.STATIC_ROOT).endswith("staticfiles"))
+        self.assertIn(
+            "whitenoise",
+            settings.STORAGES["staticfiles"]["BACKEND"].lower(),
+        )
+
+    def test_run_waitress_importa_app_sin_arrancar(self):
+        import run_waitress
+        app = run_waitress.get_application()
+        self.assertTrue(callable(app))  # es la app WSGI; no arranco servidor
+
+    def test_check_operativo_detecta_maestro_faltante(self):
+        tmp = Path(tempfile.mkdtemp())
+        orig = config.ARCHIVO_MAESTRO
+        config.ARCHIVO_MAESTRO = tmp / "NO_EXISTE.xlsx"
+        try:
+            out = StringIO()
+            with self.assertRaises(CommandError):
+                call_command("check_operativo", stdout=out, stderr=StringIO())
+            self.assertIn("No existe PROYECTO.xlsx", out.getvalue())
+        finally:
+            config.ARCHIVO_MAESTRO = orig
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_check_operativo_no_expone_secreto(self):
+        out = StringIO()
+        try:
+            call_command("check_operativo", stdout=out, stderr=StringIO())
+        except CommandError:
+            pass
+        self.assertNotIn(settings.SECRET_KEY, out.getvalue())

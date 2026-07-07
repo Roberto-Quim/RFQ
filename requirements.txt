@@ -1,6 +1,9 @@
 openpyxl>=3.1
 pandas>=2.0
 Django>=5,<7
+# Fase 4 - despliegue interno
+waitress>=3.0        # servidor WSGI para Windows
+whitenoise>=6.6      # sirve estaticos (incl. /admin/) bajo Waitress
 # Opcionales para extractores futuros (descomenta cuando los implementes):
 # pdfplumber>=0.11      # extractor PDF
 # python-docx>=1.1      # extractor Word (.docx)
