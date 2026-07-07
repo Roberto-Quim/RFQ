@@ -39,12 +39,13 @@ COPIAR_ESTILO_FILA_NUEVA = True  # al agregar fila nueva, copia estilo/formato d
                                  # fila anterior (bordes, formulas de otras columnas)
 
 # --- Extractor de correos Form Approvals ---
-# De donde sale el numero de RFQ en los correos: "pedido" (usa PEDIDO #NNN)
-# o "clave_capex" (usa la Clave del proyecto / Numero de CapEx).
+# REGLA DE NEGOCIO (confirmada): el RFQ se toma del NUMERO DE PEDIDO del correo.
+#   "PEDIDO #228" / "Request #228" -> RFQ = "228".
+# Opciones: "pedido" (default) o "clave_capex" (Clave del proyecto / No. CapEx).
 FUENTE_RFQ_CORREO = "pedido"
 
-# Traduce "Unidad de Negocio" del correo -> nombre de Planta del maestro.
-# Rellenar cuando confirmemos los nombres reales de planta. Ejemplo:
+# PENDIENTE de confirmar con negocio: si "Selecciona Unidad de Negocio" equivale
+# directo a Planta o si necesita mapeo. Vacio = se usa el valor tal cual.
+# Cuando se confirme, llenar asi:  "Questum Maquinados Ramos": "Ramos Arizpe"
 MAPA_UNIDAD_A_PLANTA = {
-    # "Questum Maquinados Ramos": "Ramos Arizpe",
 }

@@ -13,11 +13,21 @@ Maneja:
   - .eml  : correo exportado (se extrae el cuerpo text/plain o se limpia el HTML).
   (.msg de Outlook requeriria la libreria extract-msg; se puede agregar luego.)
 
+REGLA DE NEGOCIO (confirmada con Edith):
+  - El numero de RFQ SE TOMA DEL NUMERO DE PEDIDO del correo.
+        "PEDIDO #228"  -> RFQ = "228"
+        "Request #228" -> RFQ = "228"
+    Es el comportamiento por defecto (config.FUENTE_RFQ_CORREO = "pedido").
+
 Puntos finos resueltos a partir del ejemplo real (Pedido #228):
   - El SOLICITANTE se toma del campo del formulario, NO del remitente
     (quien reenvia -Luis/Edith- no es el solicitante).
   - "TBD" se trata como dato faltante, no como valor.
-  - La fecha de arranque NO viene en este formato -> queda faltante.
+
+PENDIENTES por confirmar con negocio:
+  - Fecha de arranque: NO viene en este formato -> hoy queda faltante.
+  - Planta: falta confirmar si "Unidad de Negocio" equivale directo a Planta
+    o si requiere mapeo (config.MAPA_UNIDAD_A_PLANTA).
 """
 import re
 import unicodedata
@@ -87,7 +97,8 @@ def parsear_texto(texto: str) -> dict:
         else:
             i += 1
 
-    # 2) Numero de pedido: "PEDIDO #228" o "Request #228"
+    # 2) Numero de pedido: "PEDIDO #228" o "Request #228".
+    #    De aqui sale el RFQ por regla de negocio (RFQ = numero de pedido).
     m = re.search(r"(?:pedido|request)\s*#\s*(\d+)", texto, re.IGNORECASE)
     if m:
         campos["pedido"] = m.group(1)
@@ -122,7 +133,10 @@ class FormApprovalsExtractor(Extractor):
 
         campos = parsear_texto(texto)
 
-        # --- RFQ: configurable. Por defecto el numero de PEDIDO. ---
+        # --- RFQ = numero de PEDIDO (regla de negocio confirmada). ---
+        # Configurable via config.FUENTE_RFQ_CORREO; default "pedido".
+        # El "or ... pedido" garantiza el fallback al numero de pedido aunque
+        # se cambie la fuente y esa venga vacia.
         fuente = getattr(config, "FUENTE_RFQ_CORREO", "pedido")
         rfq = _valor_util(campos.get(fuente)) or _valor_util(campos.get("pedido"))
         if not rfq:
