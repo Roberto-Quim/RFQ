@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Excel / datos reales
+PROYECTO.xlsx
+*.xls
+*.xlsx
+*.xlsm
+!requirements.txt
+
+# Entradas y salidas del proceso
+entrada/*
+procesados/*
+backups/*
+reportes/*
+muestras/*
+
+# Correos / RFQ reales / datos sensibles
+*.eml
+*.msg
+*.pdf
+*.docx
+*.txt
+
+# Permitir archivos placeholder si luego los quieres agregar
+!entrada/.gitkeep
+!procesados/.gitkeep
+!backups/.gitkeep
+!reportes/.gitkeep
+!muestras/.gitkeep
+
+# Sistema / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
