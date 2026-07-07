@@ -6,4 +6,5 @@ urlpatterns = [
     path("", views.subir_rfq, name="subir_rfq"),
     path("confirmar/", views.confirmar, name="confirmar"),
     path("historial/", views.historial, name="historial"),
+    path("estado/", views.estado, name="estado"),
 ]

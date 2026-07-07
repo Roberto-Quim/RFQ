@@ -8,12 +8,16 @@ formato, formulas, bordes ni filtros.
 > - **Fase 1 (completa): motor local en Python.** Lee correos/RFQ, extrae,
 >   actualiza el Excel conservando formato/formulas, evita duplicados y genera
 >   bitacora. Se usa por CLI (`python main.py`).
-> - **Fase 2 (en curso): sistema web basico con Django** que ENVUELVE el motor
->   de Fase 1 (no lo reescribe). Login, subir `.txt`, vista previa editable y
->   escritura confirmada al Excel, con historial en SQLite.
+> - **Fase 2 (completa): sistema web basico con Django** que ENVUELVE el motor
+>   (no lo reescribe). Login, subir `.txt`, vista previa editable y escritura
+>   confirmada al Excel, con historial en SQLite.
+> - **Fase 3 (completa): endurecimiento para uso interno controlado.**
+>   Configuracion por variables de entorno, ruta del Excel configurable, lock
+>   de escritura, permisos por usuario, auditoria, pagina `/estado/` y logging.
 >
-> El motor de Fase 1 (`config.py`, `src/`) queda intacto; Django lo reutiliza
-> por import a traves de `seguimiento/services.py`.
+> El motor de Fase 1 (`config.py`, `src/`) queda practicamente intacto (solo se
+> le agrego lectura de rutas por variable de entorno con fallback al valor de
+> siempre). Django lo reutiliza por import via `seguimiento/services.py`.
 
 ## Estructura real del maestro (PROYECTO.xlsx)
 Confirmada al inspeccionar el archivo real:
@@ -154,10 +158,70 @@ python tests/test_servicios.py    # pruebas del servicio web (sin BD)
 python manage.py test seguimiento # pruebas de integracion web (BD de prueba)
 ```
 
+## Fase 3 - Endurecimiento para uso interno
+Mejoras de seguridad/configuracion/permisos/auditoria, sin despliegue final aun.
+
+### Variables de entorno (.env)
+Copia `.env.example` a `.env` (el `.env` real NO se versiona) y ajusta:
+
+```bash
+DJANGO_SECRET_KEY=<clave-larga>   # OBLIGATORIA si DJANGO_DEBUG=0
+DJANGO_DEBUG=1                    # 0 en entorno compartido/produccion
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
+RFQ_ARCHIVO_MAESTRO=C:\ruta\a\PROYECTO.xlsx   # ruta configurable del Excel
+# Opcionales: RFQ_CARPETA_BACKUPS, RFQ_CARPETA_REPORTES, RFQ_MEDIA_ROOT, RFQ_LOGS_DIR
+```
+
+`config.py` lee estas rutas con **fallback** al valor de siempre, asi la CLI
+(`python main.py`, `python inspeccionar.py`) sigue funcionando sin `.env`.
+
+### Migrar y crear usuario
+
+```bash
+python manage.py migrate
+python manage.py createsuperuser   # tu usuario admin (no se versiona)
+```
+
+### Permiso para confirmar escritura
+Estar logueado permite subir y previsualizar. Para **confirmar** (escribir al
+Excel) se necesita el permiso `seguimiento.puede_confirmar`. Recomendado por grupo:
+
+1. Admin (`/admin/`) -> Grupos -> crea **"Confirmadores RFQ"** y asignale el
+   permiso *"Puede confirmar escritura al Excel"*.
+2. Agrega a ese grupo los usuarios autorizados.
+
+Sin el permiso, la vista previa se ve pero el boton de confirmar no aparece y el
+endpoint responde 403.
+
+### Correr y revisar estado
+
+```bash
+python manage.py runserver        # http://127.0.0.1:8000/
+```
+
+- `/estado/` (requiere login): muestra si existen `PROYECTO.xlsx`, la hoja
+  `"SEGUIMIENTO "`, carpetas `media/backups/reportes/logs`, si la BD responde y
+  si `DEBUG=True`. **No** muestra `SECRET_KEY` ni datos sensibles.
+- Escritura al Excel **serializada por lock** (`seguimiento/locking.py`): una a
+  la vez. Es cooperativo (protege a la app; no impide que alguien edite el Excel
+  a mano). Logs en `logs/rfq.log`.
+- Auditoria: `RFQProcesado` guarda usuario, accion, campos faltantes, campos
+  editados a mano, mensaje y error.
+
+### Pruebas
+
+```bash
+python tests/test_motor.py         # Fase 1
+python tests/test_servicios.py     # Fase 2 servicio (preview no escribe)
+python manage.py test seguimiento  # Fase 2+3: permisos, estado, lock, auditoria
+python manage.py check
+```
+
 ## No versionar datos sensibles
 `.gitignore` excluye: `PROYECTO.xlsx` y todo `*.xlsx/.xls/.xlsm`, `*.eml/.msg/.pdf/.docx/.txt`,
-las carpetas `entrada/procesados/backups/reportes/muestras/media/`, y `db.sqlite3`.
+las carpetas `entrada/procesados/backups/reportes/muestras/media/logs/`, `db.sqlite3` y `.env`.
 Las migraciones (`seguimiento/migrations/*.py`) SI se versionan: son estructura, no datos.
+El archivo `.env.example` (valores ficticios) SI se versiona.
 
 ## Config
 Todo lo ajustable esta en `config.py` (rutas, hoja, columnas, formato de

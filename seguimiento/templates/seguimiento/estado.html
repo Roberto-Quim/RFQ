@@ -1,0 +1,40 @@
+{% extends "seguimiento/base.html" %}
+{% block title %}Estado del sistema{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Estado del sistema</h2>
+
+  {% if debug %}
+    <div class="aviso"><strong>DEBUG=True</strong>: modo desarrollo. No usar asi en
+      un entorno compartido/produccion.</div>
+  {% endif %}
+
+  <table>
+    <tr><th>Archivo maestro</th>
+        <td>{{ maestro_ruta }}
+          {% if maestro_existe %}<span class="pill ok">existe</span>
+          {% else %}<span class="pill err">NO existe</span>{% endif %}
+        </td></tr>
+    <tr><th>Hoja "{{ hoja_nombre }}"</th>
+        <td>{% if hoja_existe %}<span class="pill ok">existe</span>
+            {% else %}<span class="pill err">NO existe</span>{% endif %}
+          {% if hojas %}<br><small>Hojas: {{ hojas|join:", " }}</small>{% endif %}
+        </td></tr>
+    <tr><th>Carpeta media/</th>
+        <td>{% if media_existe %}<span class="pill ok">ok</span>{% else %}<span class="pill err">falta</span>{% endif %}</td></tr>
+    <tr><th>Carpeta backups/</th>
+        <td>{% if backups_existe %}<span class="pill ok">ok</span>{% else %}<span class="pill err">falta</span>{% endif %}</td></tr>
+    <tr><th>Carpeta reportes/</th>
+        <td>{% if reportes_existe %}<span class="pill ok">ok</span>{% else %}<span class="pill err">falta</span>{% endif %}</td></tr>
+    <tr><th>Carpeta logs/</th>
+        <td>{% if logs_existe %}<span class="pill ok">ok</span>{% else %}<span class="pill err">falta</span>{% endif %}</td></tr>
+    <tr><th>Base de datos</th>
+        <td>{% if db_ok %}<span class="pill ok">responde</span>{% else %}<span class="pill err">error</span>{% endif %}</td></tr>
+    <tr><th>DEBUG</th><td>{{ debug }}</td></tr>
+    <tr><th>ALLOWED_HOSTS</th><td>{{ allowed_hosts|join:", " }}</td></tr>
+    <tr><th>SECRET_KEY definida</th>
+        <td>{% if secret_key_definida %}si{% else %}no{% endif %}
+          <small>(no se muestra su valor)</small></td></tr>
+  </table>
+</div>
+{% endblock %}

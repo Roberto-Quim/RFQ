@@ -35,7 +35,7 @@ muestras/*
 !reportes/.gitkeep
 !muestras/.gitkeep
 
-# Django (Fase 2)
+# Django (Fase 2 / Fase 3)
 # (los comentarios en .gitignore deben ir en su PROPIA linea, no al final del patron)
 # BD local: puede contener datos reales del historial
 db.sqlite3
@@ -44,6 +44,11 @@ db.sqlite3-journal
 media/
 # estaticos recolectados (collectstatic)
 staticfiles/
+# secretos de entorno (Fase 3): NO versionar. Se versiona .env.example
+.env
+# logs de la aplicacion (Fase 3)
+logs/
+*.log
 # NOTA: las migraciones (seguimiento/migrations/*.py) SI se versionan: son
 # estructura, no datos. Solo el __pycache__ queda excluido (regla de arriba).
 

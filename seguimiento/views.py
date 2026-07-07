@@ -1,22 +1,36 @@
 """
-Vistas del flujo web seguro (Fase 2):
+Vistas del flujo web seguro.
 
   subir_rfq  -> sube .txt y muestra PREVIEW editable (NO escribe al Excel).
-  confirmar  -> tras confirmar, escribe al Excel via el motor y guarda historial.
+  confirmar  -> escribe al Excel (requiere permiso) y guarda auditoria.
   historial  -> lista los RFQ procesados.
+  estado     -> panel de estado del sistema (sin exponer secretos).
 
-El modo seguro esta garantizado por el flujo: la escritura solo ocurre en
-'confirmar', despues de que el usuario revisa/edita la vista previa.
+Modo seguro:
+  - La escritura solo ocurre en 'confirmar', tras revisar/editar el preview.
+  - 'confirmar' exige el permiso 'seguimiento.puede_confirmar'. Sin el, el
+    usuario puede subir y previsualizar, pero no escribir al Excel.
 """
+import logging
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
+import config
 from .forms import SubirRFQForm, VistaPreviaForm
 from .models import RFQProcesado
 from .services import MotorError, escribir_confirmado, extraer_preview, guardar_subida
 from src.modelo import RFQData
+
+log = logging.getLogger("seguimiento")
+
+PERM_CONFIRMAR = "seguimiento.puede_confirmar"
+
+
+def _iso(fecha):
+    return fecha.isoformat() if fecha else ""
 
 
 @login_required
@@ -40,11 +54,18 @@ def subir_rfq(request):
                 "solicitante": dato.solicitante or "",
                 "planta": dato.planta or "",
                 "archivo_nombre": archivo.name,
+                # originales para auditar ediciones:
+                "orig_rfq": dato.rfq,
+                "orig_descripcion": dato.descripcion or "",
+                "orig_fecha_arranque": _iso(dato.fecha_arranque),
+                "orig_solicitante": dato.solicitante or "",
+                "orig_planta": dato.planta or "",
             })
             return render(request, "seguimiento/vista_previa.html", {
                 "form": preview,
                 "faltantes": dato.faltantes,
                 "archivo_nombre": archivo.name,
+                "puede_confirmar": request.user.has_perm(PERM_CONFIRMAR),
             })
     else:
         form = SubirRFQForm()
@@ -53,9 +74,18 @@ def subir_rfq(request):
 
 @login_required
 def confirmar(request):
-    """Paso 4-6: escribe al Excel SOLO tras confirmar y registra el historial."""
+    """Paso 4-6: escribe al Excel SOLO tras confirmar y con permiso; audita."""
     if request.method != "POST":
         return redirect("subir_rfq")
+
+    # Control de permiso: sin el, puede ver preview pero no escribir.
+    if not request.user.has_perm(PERM_CONFIRMAR):
+        log.warning("Usuario '%s' intento confirmar sin permiso", request.user)
+        return render(request, "seguimiento/resultado.html", {
+            "ok": False,
+            "mensaje": "No tienes permiso para confirmar la escritura al Excel. "
+                       "Solicita el permiso 'Confirmadores RFQ'.",
+        }, status=403)
 
     form = VistaPreviaForm(request.POST)
     if not form.is_valid():
@@ -63,9 +93,11 @@ def confirmar(request):
             "form": form,
             "faltantes": [],
             "archivo_nombre": request.POST.get("archivo_nombre", ""),
+            "puede_confirmar": True,
         })
 
     cd = form.cleaned_data
+    editados = form.campos_editados()
     dato = RFQData(
         rfq=cd["rfq"].strip(),
         descripcion=(cd["descripcion"] or None),
@@ -84,7 +116,9 @@ def confirmar(request):
             fecha_arranque=dato.fecha_arranque, solicitante=dato.solicitante or "",
             planta=dato.planta or "", archivo_nombre=dato.origen_archivo,
             estado=RFQProcesado.ESTADO_ERROR, accion="",
-            campos_faltantes=", ".join(dato.faltantes), mensaje=str(e),
+            campos_faltantes=", ".join(dato.faltantes),
+            campos_editados=", ".join(editados),
+            usuario=request.user, mensaje=str(e),
         )
         return render(request, "seguimiento/resultado.html", {
             "ok": False, "mensaje": str(e), "dato": dato,
@@ -96,15 +130,56 @@ def confirmar(request):
         planta=dato.planta or "", archivo_nombre=dato.origen_archivo,
         estado=RFQProcesado.ESTADO_OK, accion=resumen["accion"],
         campos_faltantes=", ".join(resumen["faltantes"]),
-        mensaje=f"Backup: {resumen['backup']}",
+        campos_editados=", ".join(editados),
+        usuario=request.user, mensaje=f"Backup: {resumen['backup']}",
     )
     return render(request, "seguimiento/resultado.html", {
-        "ok": True, "dato": dato, "resumen": resumen,
+        "ok": True, "dato": dato, "resumen": resumen, "editados": editados,
     })
 
 
 @login_required
 def historial(request):
     """Lista los ultimos RFQ procesados."""
-    registros = RFQProcesado.objects.all()[:100]
+    registros = RFQProcesado.objects.select_related("usuario")[:100]
     return render(request, "seguimiento/historial.html", {"registros": registros})
+
+
+@login_required
+def estado(request):
+    """Panel de estado del sistema. NO expone secretos (SECRET_KEY, etc.)."""
+    hoja_ok = False
+    hojas = []
+    if config.ARCHIVO_MAESTRO.exists():
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook(config.ARCHIVO_MAESTRO, read_only=True)
+            hojas = wb.sheetnames
+            hoja_ok = config.HOJA_SEGUIMIENTO in hojas
+            wb.close()
+        except Exception as e:  # noqa: BLE001
+            log.error("No se pudo inspeccionar el maestro: %s", e)
+
+    # Chequeo simple de BD.
+    try:
+        RFQProcesado.objects.exists()
+        db_ok = True
+    except Exception:  # noqa: BLE001
+        db_ok = False
+
+    contexto = {
+        "maestro_ruta": str(config.ARCHIVO_MAESTRO),
+        "maestro_existe": config.ARCHIVO_MAESTRO.exists(),
+        "hoja_nombre": config.HOJA_SEGUIMIENTO,
+        "hoja_existe": hoja_ok,
+        "hojas": hojas,
+        "media_existe": settings.MEDIA_ROOT.exists(),
+        "backups_existe": config.CARPETA_BACKUPS.exists(),
+        "reportes_existe": config.CARPETA_REPORTES.exists(),
+        "logs_existe": settings.LOGS_DIR.exists(),
+        "db_ok": db_ok,
+        "debug": settings.DEBUG,
+        "allowed_hosts": settings.ALLOWED_HOSTS,
+        "secret_key_definida": bool(settings.SECRET_KEY),  # solo bool, nunca el valor
+    }
+    return render(request, "seguimiento/estado.html", contexto)

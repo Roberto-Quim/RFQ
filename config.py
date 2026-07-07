@@ -7,15 +7,29 @@ Estructura confirmada tras inspeccionar el PROYECTO.xlsx real:
   - Columnas gestionadas: A, B, C, D, F.
   - Columnas O y P tienen formulas (O=IF, P=resta) -> NO se escriben.
 """
+import os
 from pathlib import Path
 
 # --- Rutas ---
 RAIZ = Path(__file__).resolve().parent
-ARCHIVO_MAESTRO = RAIZ / "PROYECTO.xlsx"
-CARPETA_ENTRADA = RAIZ / "entrada"       # RFQ nuevos a procesar
-CARPETA_PROCESADOS = RAIZ / "procesados" # se mueven aqui tras procesar
-CARPETA_BACKUPS = RAIZ / "backups"       # copia del maestro antes de cada corrida
-CARPETA_REPORTES = RAIZ / "reportes"     # bitacoras
+
+
+def _ruta_env(nombre_env: str, default: Path) -> Path:
+    """Ruta configurable por variable de entorno, con fallback al default.
+
+    Permite que Django (Fase 3) apunte el maestro/carpetas a otra ubicacion
+    SIN cambiar el comportamiento de la CLI: si la variable no esta definida,
+    se usa exactamente la ruta de siempre.
+    """
+    valor = os.environ.get(nombre_env)
+    return Path(valor).expanduser() if valor else default
+
+
+ARCHIVO_MAESTRO = _ruta_env("RFQ_ARCHIVO_MAESTRO", RAIZ / "PROYECTO.xlsx")
+CARPETA_ENTRADA = _ruta_env("RFQ_CARPETA_ENTRADA", RAIZ / "entrada")       # RFQ nuevos
+CARPETA_PROCESADOS = _ruta_env("RFQ_CARPETA_PROCESADOS", RAIZ / "procesados")  # ya procesados
+CARPETA_BACKUPS = _ruta_env("RFQ_CARPETA_BACKUPS", RAIZ / "backups")       # copias del maestro
+CARPETA_REPORTES = _ruta_env("RFQ_CARPETA_REPORTES", RAIZ / "reportes")    # bitacoras
 
 # --- Estructura de la hoja SEGUIMIENTO ---
 # IMPORTANTE: el nombre real de la hoja termina con un ESPACIO. No lo quites.

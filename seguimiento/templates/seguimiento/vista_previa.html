@@ -16,7 +16,13 @@
   <form method="post" action="{% url 'confirmar' %}">
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit">Actualizar seguimiento</button>
+    {% if puede_confirmar %}
+      <button type="submit">Actualizar seguimiento</button>
+    {% else %}
+      <div class="aviso">No tienes permiso para confirmar la escritura al Excel.
+        Puedes revisar los datos, pero necesitas el permiso
+        <strong>Confirmadores RFQ</strong> para escribir.</div>
+    {% endif %}
     <a href="{% url 'subir_rfq' %}"><button type="button" class="secundario">Cancelar</button></a>
   </form>
 </div>
