@@ -1,11 +1,11 @@
 """
-Configuracion central del MVP.
+Configuracion central del MVP (Fase 1 - motor local).
 
-TODO tras inspeccionar PROYECTO.xlsx:
-  - Ajustar HOJA_SEGUIMIENTO si el nombre exacto es distinto.
-  - Ajustar FILA_ENCABEZADOS y PRIMERA_FILA_DATOS.
-  - Confirmar las letras de columna (A, B, C, D, F).
-  - Confirmar FORMATO_FECHA segun como se muestran las fechas en el maestro.
+Estructura confirmada tras inspeccionar el PROYECTO.xlsx real:
+  - Hoja: "SEGUIMIENTO " (OJO: lleva un ESPACIO al final del nombre).
+  - Encabezados en la fila 2; los datos empiezan en la fila 3.
+  - Columnas gestionadas: A, B, C, D, F.
+  - Columnas O y P tienen formulas (O=IF, P=resta) -> NO se escriben.
 """
 from pathlib import Path
 
@@ -18,9 +18,10 @@ CARPETA_BACKUPS = RAIZ / "backups"       # copia del maestro antes de cada corri
 CARPETA_REPORTES = RAIZ / "reportes"     # bitacoras
 
 # --- Estructura de la hoja SEGUIMIENTO ---
-HOJA_SEGUIMIENTO = "SEGUIMIENTO"
-FILA_ENCABEZADOS = 1        # fila donde estan los titulos de columna
-PRIMERA_FILA_DATOS = 2      # primera fila con datos reales
+# IMPORTANTE: el nombre real de la hoja termina con un ESPACIO. No lo quites.
+HOJA_SEGUIMIENTO = "SEGUIMIENTO "
+FILA_ENCABEZADOS = 2        # fila donde estan los titulos de columna
+PRIMERA_FILA_DATOS = 3      # primera fila con datos reales
 
 # Mapeo campo -> columna (letra de Excel)
 COLUMNAS = {

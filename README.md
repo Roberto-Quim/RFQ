@@ -1,8 +1,27 @@
 # MVP - Actualizador de PROYECTO.xlsx desde RFQ
 
 Automatizacion local que lee archivos RFQ de `entrada/`, extrae los campos
-clave y actualiza la hoja **SEGUIMIENTO** de `PROYECTO.xlsx` sin perder
+clave y actualiza la hoja de seguimiento de `PROYECTO.xlsx` sin perder
 formato, formulas, bordes ni filtros.
+
+> **Fase actual: Fase 1 (motor local en Python).** Django NO es parte de la
+> Fase 1: sera Fase 2 o Fase 3. Primero se deja funcionando el motor local
+> (leer correos/RFQ, extraer, actualizar el Excel, conservar formato/formulas,
+> evitar duplicados, generar bitacora) y luego ese mismo motor se reutiliza
+> dentro de Django.
+
+## Estructura real del maestro (PROYECTO.xlsx)
+Confirmada al inspeccionar el archivo real:
+
+- **Hoja:** `"SEGUIMIENTO "` — OJO: el nombre **termina con un ESPACIO**.
+  (En `config.py` esta escrito con el espacio a proposito; no lo quites.)
+- **Encabezados:** fila **2**.
+- **Datos:** empiezan en la fila **3**.
+- **Columnas gestionadas** (las unicas que escribe el motor):
+  - A = RFQ, B = DESCRIPCION, C = FECHA DE ARRANQUE, D = SOLICITANTE, F = PLANTA.
+- **Columnas O y P tienen formulas** (O = `IF(...)`, P = resta de fechas) y se
+  repiten por fila. **No se escriben manualmente.** Al agregar una fila nueva,
+  el motor copia y **ajusta** esas formulas a la fila nueva.
 
 ## Instalacion
 ```
@@ -25,11 +44,24 @@ pip install -r requirements.txt
 
 ## Como funciona
 - Antes de escribir hace **backup** en `backups/`.
-- Busca el RFQ en la columna A: si existe **actualiza** esa fila; si no, **agrega** al final.
-- Solo toca columnas A, B, C, D, F. Las demas quedan intactas.
-- RFQ siempre como texto; fechas como fechas reales de Excel.
+- Busca el RFQ en la columna A **desde la fila 3** (nunca toma el encabezado
+  de la fila 2 como dato): si existe **actualiza** esa fila; si no, **agrega** al final.
+- Solo toca columnas A, B, C, D, F. Las demas quedan intactas (incluidas O y P).
+- RFQ siempre como texto (conserva `185`, `185.5`, `131/4`); fechas como fechas reales de Excel.
+- Al **agregar** una fila nueva, hereda estilo/formato de la fila anterior y
+  **ajusta las formulas de O y P** a la fila nueva (traductor de openpyxl).
 - Guarda de forma atomica (temp + replace) para no corromper el archivo.
 - Los archivos ya leidos se mueven a `procesados/`.
+
+## Validacion
+Prueba minima del motor (sin datos reales ni PROYECTO.xlsx):
+
+```
+python tests/test_motor.py
+```
+
+Verifica: RFQ desde PEDIDO #/Request #, RFQ como texto, no duplicar,
+no tocar O/P al actualizar, y ajuste de formulas O/P al agregar filas.
 
 ## Formato CSV de entrada (funcional hoy)
 Encabezados exactos:
@@ -66,6 +98,8 @@ El RFQ se guarda siempre como **texto** en la columna A del maestro.
   Negocio` (ej. "Questum Maquinados Ramos") equivale directo a `Planta`, o si
   requiere un mapeo (ej. -> "Ramos Arizpe"). El mapeo opcional esta en
   `config.MAPA_UNIDAD_A_PLANTA` (vacio = se usa el valor tal cual).
+- **Django**: es Fase 2 o Fase 3, NO Fase 1. El motor local se reutilizara
+  dentro de Django cuando llegue esa fase.
 
 ## Config
 Todo lo ajustable esta en `config.py` (rutas, hoja, columnas, formato de

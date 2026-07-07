@@ -16,7 +16,8 @@ from datetime import date, datetime
 from pathlib import Path
 
 from openpyxl import load_workbook
-from openpyxl.utils import column_index_from_string
+from openpyxl.formula.translate import Translator
+from openpyxl.utils import column_index_from_string, get_column_letter
 
 import config
 
@@ -116,19 +117,35 @@ def _escribir_celda(ws, fila: int, campo: str, valor):
 
 
 def _copiar_estilo_fila(ws, origen: int, destino: int):
-    """Copia formato de TODAS las columnas de una fila a otra (para filas nuevas),
-    y replica formulas de las columnas que NO gestionamos, ajustando su fila.
-    Asi la fila nueva hereda bordes, formato y formulas del renglon anterior.
+    """Prepara una fila nueva heredando de la fila anterior (origen):
+
+    1. Copia el estilo/formato (bordes, formato de numero) en TODAS las columnas.
+    2. En columnas NO gestionadas que tengan formula (O, P, ...), replica la
+       formula ajustando sus referencias a la fila nueva con el traductor de
+       openpyxl (maneja bien referencias relativas/absolutas; no rompe numeros).
+    3. NO copia el VALOR de las columnas gestionadas (A, B, C, D, F): esas las
+       escribe _escribir_celda, para no arrastrar el dato del renglon anterior.
     """
     gestionadas = {_col(c) for c in config.COLUMNAS}
     for c in range(1, ws.max_column + 1):
         c_orig = ws.cell(row=origen, column=c)
         c_dest = ws.cell(row=destino, column=c)
+
+        # 1) heredar estilo/formato en todas las columnas
         if c_orig.has_style:
             c_dest._style = copy(c_orig._style)
-        # replicar formula de columnas no gestionadas (E, G, ...)
-        if c not in gestionadas and isinstance(c_orig.value, str) and c_orig.value.startswith("="):
-            c_dest.value = c_orig.value.replace(str(origen), str(destino))
+
+        # 2) las gestionadas se escriben aparte; no copiar su valor aqui
+        if c in gestionadas:
+            continue
+
+        # 3) columnas no gestionadas: solo replicar formulas (ej. O y P),
+        #    ajustadas a la fila destino. Los valores no-formula no se copian.
+        if isinstance(c_orig.value, str) and c_orig.value.startswith("="):
+            origen_coord = f"{get_column_letter(c)}{origen}"
+            destino_coord = f"{get_column_letter(c)}{destino}"
+            c_dest.value = Translator(c_orig.value, origin=origen_coord).translate_formula(destino_coord)
+
     # alto de fila
     if origen in ws.row_dimensions:
         ws.row_dimensions[destino].height = ws.row_dimensions[origen].height
