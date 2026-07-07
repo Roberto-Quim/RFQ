@@ -40,3 +40,6 @@ muestras/*
 Thumbs.db
 .vscode/
 .idea/
+
+# Permitir requirements aunque sea .txt
+!requirements.txt
