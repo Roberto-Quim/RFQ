@@ -157,8 +157,11 @@ LOGGING = {
     },
     "handlers": {
         "archivo": {
-            "class": "logging.FileHandler",
+            # Rotacion (Fase 5): 5 MB por archivo, hasta 5 backups. Solo stdlib.
+            "class": "logging.handlers.RotatingFileHandler",
             "filename": str(LOGS_DIR / "rfq.log"),
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
             "formatter": "detallado",
             "encoding": "utf-8",
         },

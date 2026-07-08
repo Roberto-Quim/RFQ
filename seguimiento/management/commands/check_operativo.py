@@ -29,7 +29,14 @@ SECRETS_INSEGUROS = {
 class Command(BaseCommand):
     help = "Chequeo operativo del sistema RFQ para uso interno."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--simple", action="store_true",
+            help="Salida compacta (una linea de resumen), util para .bat / Task Scheduler.",
+        )
+
     def handle(self, *args, **options):
+        simple = options.get("simple", False)
         ok, problemas = [], []
 
         def marca(cond, texto_ok, texto_error):
@@ -98,7 +105,27 @@ class Command(BaseCommand):
         marca(existe, "permiso 'puede_confirmar' existe",
               "falta el permiso 'puede_confirmar': ejecuta migrate")
 
+        # Logs escribibles (se prueba una escritura real y se borra)
+        try:
+            prueba = Path(settings.LOGS_DIR) / ".escritura_test"
+            prueba.write_text("ok", encoding="utf-8")
+            prueba.unlink(missing_ok=True)
+            ok.append(f"carpeta logs escribible ({settings.LOGS_DIR})")
+        except Exception as e:  # noqa: BLE001
+            problemas.append(f"carpeta logs NO escribible: {e}")
+
         # Salida
+        if simple:
+            # Una sola linea, ideal para Task Scheduler / .bat.
+            if problemas:
+                self.stdout.write(
+                    f"RFQ CHECK: FALLO ({len(problemas)} problema(s)): "
+                    + " | ".join(problemas)
+                )
+                raise CommandError(f"{len(problemas)} problema(s) detectado(s).")
+            self.stdout.write(f"RFQ CHECK: OK ({len(ok)} verificaciones)")
+            return
+
         for o in ok:
             self.stdout.write(self.style.SUCCESS(f"[OK] {o}"))
         for p in problemas:

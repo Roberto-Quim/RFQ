@@ -238,6 +238,18 @@ python run_waitress.py            # servidor interno (host/puerto por env)
 - Estaticos servidos por **WhiteNoise** tras `collectstatic` (incluye `/admin/`).
 - `check_operativo`: management command que valida el entorno; NO muestra `SECRET_KEY`.
 
+## Fase 5 - Operacion persistente (Windows)
+Deja el sistema listo para correr como servicio/tarea sin abrir la terminal cada vez.
+
+- **Scripts** (`scripts/`): `iniciar_servidor.bat`/`.ps1`, `check_operativo.bat`,
+  `migrar_y_collectstatic.bat`. Cada script activa `.venv`, corre el chequeo y arranca Waitress.
+- **Arranque automatico**: guia de **Task Scheduler** y **NSSM** (sin instalar nada) en
+  **[scripts/README_OPERACION_WINDOWS.md](scripts/README_OPERACION_WINDOWS.md)**.
+- **Operacion diaria** (iniciar/detener/reiniciar, logs, backups, Excel bloqueado,
+  restaurar backup, checklist): **[docs/OPERACION_DIARIA.md](docs/OPERACION_DIARIA.md)**.
+- **Logs rotativos**: `logs/rfq.log`, 5 MB por archivo, 5 backups (stdlib `RotatingFileHandler`).
+- **Monitoreo compacto**: `python manage.py check_operativo --simple` (una linea, ideal para `.bat`).
+
 ## No versionar datos sensibles
 `.gitignore` excluye: `PROYECTO.xlsx` y todo `*.xlsx/.xls/.xlsm`, `*.eml/.msg/.pdf/.docx/.txt`,
 las carpetas `entrada/procesados/backups/reportes/muestras/media/logs/`, `db.sqlite3` y `.env`.

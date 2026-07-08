@@ -185,3 +185,34 @@ class Fase4Tests(TestCase):
         except CommandError:
             pass
         self.assertNotIn(settings.SECRET_KEY, out.getvalue())
+
+
+class Fase5Tests(TestCase):
+    """Operacion persistente: rotacion de logs, --simple y scripts."""
+
+    def test_logging_usa_rotating_file_handler(self):
+        h = settings.LOGGING["handlers"]["archivo"]
+        self.assertTrue(h["class"].endswith("RotatingFileHandler"))
+        self.assertEqual(h["backupCount"], 5)
+        self.assertEqual(h["maxBytes"], 5 * 1024 * 1024)
+
+    def test_check_operativo_simple_no_expone_secreto(self):
+        out = StringIO()
+        try:
+            call_command("check_operativo", "--simple", stdout=out, stderr=StringIO())
+        except CommandError:
+            pass
+        salida = out.getvalue()
+        self.assertIn("RFQ CHECK", salida)                 # salida compacta
+        self.assertNotIn(settings.SECRET_KEY, salida)      # nunca el valor
+
+    def test_scripts_operativos_existen(self):
+        scripts = Path(settings.BASE_DIR) / "scripts"
+        for nombre in ("iniciar_servidor.bat", "iniciar_servidor.ps1",
+                       "check_operativo.bat", "migrar_y_collectstatic.bat",
+                       "README_OPERACION_WINDOWS.md"):
+            self.assertTrue((scripts / nombre).exists(), f"falta scripts/{nombre}")
+
+    def test_run_waitress_sigue_importable(self):
+        import run_waitress
+        self.assertTrue(callable(run_waitress.get_application()))
