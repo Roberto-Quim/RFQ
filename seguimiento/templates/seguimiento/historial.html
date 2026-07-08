@@ -3,6 +3,7 @@
 {% block content %}
 <div class="card">
   <h2>Historial de procesamientos</h2>
+  <p><a href="{% url 'exportar_historial_csv' %}"><button type="button">Exportar CSV</button></a></p>
   {% if registros %}
   <div style="overflow-x:auto">
     <table>

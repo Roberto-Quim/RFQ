@@ -2,19 +2,24 @@ from django import forms
 
 MAX_BYTES = 2 * 1024 * 1024  # 2 MB
 MAX_DESCRIPCION = 2000       # limite defensivo para descripcion
+# Formatos aceptados HOY en la web. .msg/.pdf/.docx siguen siendo placeholders.
+EXTENSIONES_PERMITIDAS = (".txt", ".eml")
 
 
 class SubirRFQForm(forms.Form):
-    """Paso 1: subir el archivo RFQ/correo en .txt."""
+    """Paso 1: subir el archivo RFQ/correo (.txt o .eml)."""
     archivo = forms.FileField(
-        label="Archivo RFQ / correo (.txt)",
-        help_text="Solo .txt (correo Form Approvals pegado como texto). Max 2 MB.",
+        label="Archivo RFQ / correo (.txt o .eml)",
+        help_text="Correo Form Approvals como .txt o .eml. Max 2 MB. "
+                  ".msg/.pdf/.docx aun no soportados.",
     )
 
     def clean_archivo(self):
         f = self.cleaned_data["archivo"]
-        if not f.name.lower().endswith(".txt"):
-            raise forms.ValidationError("Solo se aceptan archivos .txt")
+        if not f.name.lower().endswith(EXTENSIONES_PERMITIDAS):
+            raise forms.ValidationError(
+                "Solo se aceptan archivos .txt o .eml por ahora."
+            )
         if f.size == 0:
             raise forms.ValidationError("El archivo esta vacio.")
         if f.size > MAX_BYTES:

@@ -11,11 +11,13 @@ Modo seguro:
   - 'confirmar' exige el permiso 'seguimiento.puede_confirmar'. Sin el, el
     usuario puede subir y previsualizar, pero no escribir al Excel.
 """
+import csv
 import logging
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
 import config
@@ -143,6 +145,32 @@ def historial(request):
     """Lista los ultimos RFQ procesados."""
     registros = RFQProcesado.objects.select_related("usuario")[:100]
     return render(request, "seguimiento/historial.html", {"registros": registros})
+
+
+# Columnas de la exportacion CSV (encabezado y orden).
+CSV_COLUMNAS = [
+    "fecha", "usuario", "rfq", "descripcion", "solicitante", "planta",
+    "accion", "estado", "campos_faltantes", "campos_editados", "mensaje",
+]
+
+
+@login_required
+def exportar_historial_csv(request):
+    """Descarga el historial completo como CSV (requiere login)."""
+    respuesta = HttpResponse(content_type="text/csv; charset=utf-8")
+    respuesta["Content-Disposition"] = 'attachment; filename="historial_rfq.csv"'
+    respuesta.write("﻿")  # BOM para que Excel abra los acentos bien
+
+    escritor = csv.writer(respuesta)
+    escritor.writerow(CSV_COLUMNAS)
+    for r in RFQProcesado.objects.select_related("usuario").all():
+        escritor.writerow([
+            r.creado_en.strftime("%Y-%m-%d %H:%M"),
+            r.usuario.get_username() if r.usuario else "",
+            r.rfq, r.descripcion, r.solicitante, r.planta,
+            r.accion, r.estado, r.campos_faltantes, r.campos_editados, r.mensaje,
+        ])
+    return respuesta
 
 
 @login_required

@@ -6,19 +6,23 @@ TEMPORAL (no tocan el Excel real). Ejecuta:  python manage.py test seguimiento
 """
 import shutil
 import tempfile
+from email.message import EmailMessage
 from io import StringIO
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import Permission, User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import Client, TestCase
 from openpyxl import Workbook, load_workbook
 
 import config
+from seguimiento.forms import SubirRFQForm
 from seguimiento.locking import LockOcupado, lock_escritura_excel
 from seguimiento.models import RFQProcesado
+from seguimiento import services
 
 
 class FlujoWebTests(TestCase):
@@ -216,3 +220,118 @@ class Fase5Tests(TestCase):
     def test_run_waitress_sigue_importable(self):
         import run_waitress
         self.assertTrue(callable(run_waitress.get_application()))
+
+
+def _crear_eml(path: Path, cuerpo: str):
+    """Genera un .eml ficticio con cuerpo text/plain."""
+    msg = EmailMessage()
+    msg["Subject"] = "RFQ - CapEx Interno"
+    msg["From"] = "form@questum.com"
+    msg["To"] = "compras@questum.com"
+    msg.set_content(cuerpo)
+    path.write_bytes(msg.as_bytes())
+
+
+EML_PEDIDO = """PEDIDO #321 | JUL 08, 2026
+
+Nombre del Solicitante:
+Persona Eml Uno
+Selecciona Unidad de Negocio:
+Planta Demo Eml
+Breve descripción de la solicitud de CapEx:
+Equipo ficticio desde eml
+"""
+
+EML_REQUEST = "Request #654 Complete\n\nNombre del Solicitante:\nPersona Eml Dos\n"
+
+
+class Fase6Tests(TestCase):
+    """Extractor .eml, form multiformato, lote dry-run y export CSV."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    # --- extractor .eml ---
+    def test_eml_pedido(self):
+        from src.extractores.correo_formapprovals import FormApprovalsExtractor
+        f = self.tmp / "pedido.eml"
+        _crear_eml(f, EML_PEDIDO)
+        dato = FormApprovalsExtractor().extraer(f)[0]
+        self.assertEqual(dato.rfq, "321")
+        self.assertEqual(dato.solicitante, "Persona Eml Uno")
+        self.assertIsNone(dato.fecha_arranque)
+
+    def test_eml_request(self):
+        from src.extractores.correo_formapprovals import FormApprovalsExtractor
+        f = self.tmp / "request.eml"
+        _crear_eml(f, EML_REQUEST)
+        dato = FormApprovalsExtractor().extraer(f)[0]
+        self.assertEqual(dato.rfq, "654")
+
+    def test_eml_sin_rfq_falla_claro(self):
+        f = self.tmp / "sinrfq.eml"
+        _crear_eml(f, "Correo sin numero de pedido.\n")
+        with self.assertRaises(services.MotorError):
+            services.extraer_preview(f)
+
+    # --- form multiformato ---
+    def _form_con(self, nombre):
+        archivo = SimpleUploadedFile(nombre, b"PEDIDO #1\n", content_type="text/plain")
+        return SubirRFQForm(data={}, files={"archivo": archivo})
+
+    def test_form_acepta_txt_y_eml(self):
+        self.assertTrue(self._form_con("a.txt").is_valid())
+        self.assertTrue(self._form_con("b.eml").is_valid())
+
+    def test_form_rechaza_pdf(self):
+        self.assertFalse(self._form_con("c.pdf").is_valid())
+
+    # --- preview .eml no escribe ---
+    def test_preview_eml_no_escribe(self):
+        orig = config.ARCHIVO_MAESTRO
+        config.ARCHIVO_MAESTRO = self.tmp / "PROYECTO.xlsx"
+        try:
+            f = self.tmp / "p.eml"
+            _crear_eml(f, EML_PEDIDO)
+            services.extraer_preview(f)
+            self.assertFalse(config.ARCHIVO_MAESTRO.exists())
+        finally:
+            config.ARCHIVO_MAESTRO = orig
+
+    # --- lote dry-run no escribe ---
+    def test_importar_lote_dry_run_no_escribe(self):
+        orig = config.ARCHIVO_MAESTRO
+        config.ARCHIVO_MAESTRO = self.tmp / "PROYECTO.xlsx"
+        entrada = self.tmp / "entrada"
+        entrada.mkdir()
+        (entrada / "r.txt").write_text("PEDIDO #900\n", encoding="utf-8")
+        try:
+            out = StringIO()
+            call_command("importar_rfq_lote", "--carpeta", str(entrada), stdout=out)
+            salida = out.getvalue()
+            self.assertIn("DRY-RUN", salida)
+            self.assertIn("900", salida)
+            self.assertFalse(config.ARCHIVO_MAESTRO.exists())  # no escribio
+        finally:
+            config.ARCHIVO_MAESTRO = orig
+
+    # --- export CSV ---
+    def test_export_csv_requiere_login(self):
+        self.assertEqual(Client().get("/historial/exportar.csv").status_code, 302)
+
+    def test_export_csv_encabezados_y_datos(self):
+        user = User.objects.create_user("u6", password="x")
+        RFQProcesado.objects.create(rfq="42", estado="ok", accion="agregado",
+                                    usuario=user, solicitante="Fulano")
+        cli = Client()
+        cli.force_login(user)
+        resp = cli.get("/historial/exportar.csv")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/csv", resp["Content-Type"])
+        contenido = resp.content.decode("utf-8-sig")
+        self.assertIn("fecha,usuario,rfq,descripcion", contenido)
+        self.assertIn("42", contenido)
+        self.assertIn("Fulano", contenido)

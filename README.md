@@ -79,12 +79,26 @@ rfq,descripcion,fecha_arranque,solicitante,planta
 ```
 Fechas en `dd/mm/aaaa`. RFQ puede ser `185`, `185.5`, `131/4`.
 
+## Formatos soportados (Fase 6)
+| Formato | Estado | Notas |
+|---|---|---|
+| `.txt` Form Approvals | **Funcional** | correo pegado como texto |
+| `.eml` | **Funcional** | correo exportado; lee `text/plain` o limpia HTML (stdlib `email`) |
+| `.csv` | Funcional | carga manual/masiva |
+| `.xlsx`/`.xlsm` | Plantilla adaptable | RFQ en Excel |
+| `.msg` (Outlook) | Placeholder | requeriria `extract-msg` (no instalada) |
+| `.pdf` | Placeholder | requeriria `pdfplumber` (no instalada); escaneados necesitan OCR |
+| `.docx` | Placeholder | requeriria `python-docx` (no instalada) |
+
+Los placeholders dan mensajes claros ("dependencia no instalada" / "se requiere
+archivo de ejemplo real") en lugar de fallar en silencio.
+
 ## Extractores
 `src/extractores/` — un plugin por tipo de archivo:
 - `csv_manual.py` — funcional (carga manual/masiva).
 - `excel_rfq.py` — plantilla adaptable para RFQ en Excel.
 - `correo_formapprovals.py` — funcional. Correos "Form Approvals" (`.txt` / `.eml`).
-- `pendientes.py` — PDF / Word (por implementar con archivos reales).
+- `pendientes.py` — placeholders mejorados para `.msg` / `.pdf` / `.docx`.
 
 Para un formato nuevo: crea una subclase de `Extractor` y agregala a
 `REGISTRO` en `src/extractores/__init__.py`.
@@ -249,6 +263,22 @@ Deja el sistema listo para correr como servicio/tarea sin abrir la terminal cada
   restaurar backup, checklist): **[docs/OPERACION_DIARIA.md](docs/OPERACION_DIARIA.md)**.
 - **Logs rotativos**: `logs/rfq.log`, 5 MB por archivo, 5 backups (stdlib `RotatingFileHandler`).
 - **Monitoreo compacto**: `python manage.py check_operativo --simple` (una linea, ideal para `.bat`).
+
+## Fase 6 - Mas formatos, lote y export
+- **Web**: se pueden subir `.txt` y `.eml` (misma vista previa editable; no escribe hasta confirmar).
+- **Importacion por lote** (management command, **dry-run por defecto**):
+
+  ```bash
+  python manage.py importar_rfq_lote --carpeta C:\ruta\rfq_entrada
+  python manage.py importar_rfq_lote --carpeta C:\ruta\rfq_entrada --confirmar
+  ```
+
+  Sin `--confirmar` solo LEE y reporta (no escribe al Excel). Con `--confirmar`
+  usa el mismo flujo seguro (backup + lock). No mueve ni borra los archivos.
+- **Exportar historial**: en `/historial/` boton "Exportar CSV"
+  (`/historial/exportar.csv`, requiere login) -> `historial_rfq.csv` con fecha,
+  usuario, RFQ, descripcion, solicitante, planta, accion, estado, faltantes,
+  editados, mensaje.
 
 ## No versionar datos sensibles
 `.gitignore` excluye: `PROYECTO.xlsx` y todo `*.xlsx/.xls/.xlsm`, `*.eml/.msg/.pdf/.docx/.txt`,
